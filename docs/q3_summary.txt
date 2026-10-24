@@ -1,0 +1,59 @@
+SUMMIT OUTDOOR CO. — Q3 2026 PERFORMANCE SUMMARY
+Prepared by: Commercial Analytics | Published: October 8, 2026
+Scope: Orders booked July 1–September 30, 2026; net of cancellations and returns.
+
+EXECUTIVE SUMMARY
+Q3 2026 was a strong revenue quarter with a difficult margin story. Net revenue
+reached $33.5K, up 20.1% from $27.9K in Q2. Order volume rose across footwear
+and camping, and average order value held at $185. Northeast remained our largest
+named region at $11.6K, or roughly 35% of net revenue.
+
+Profit margins dropped 8% due to increased shipping costs in the Northeast.
+The Northeast carried the highest revenue exposure and the sharpest increase in
+cost-to-serve, so it was the region most affected by the margin decline. Carrier
+capacity constraints raised last-mile surcharges, while the region's 3% price
+index was not enough to offset the increase. The company absorbed most of the
+surcharge rather than passing it through mid-quarter.
+
+REVENUE AND DEMAND
+- Net revenue: $33.5K, +20.1% quarter over quarter.
+- Completed orders: 150. Shipped orders: 24. Cancelled: 8. Returned: 6.
+- Northeast: $11.6K net revenue, 46 revenue-bearing orders, the largest named region.
+- Southeast: $9.1K. Midwest: $4.2K. Southwest: $3.4K. West: $3.0K.
+- Footwear led category growth, with Velocity Trail Shoe and the AeroLite Running
+  Shoe (Product ID 17) among the top three products in the Northeast.
+- Discounting was broadly stable, but the share of orders above $1,000 increased.
+
+MARGIN AND COST PRESSURE
+Gross margin in the Northeast compressed sharply in Q3 as cost-to-serve rose. The
+largest drivers were outbound parcel surcharges, a 12% increase in expedited
+shipping, and a heavier mix of footwear, which ships in larger cartons. The
+shipping increase alone explains roughly six of the eight margin points; the
+remaining pressure came from markdowns on discontinued colors.
+
+This is a cost-to-serve issue, not a pricing-power issue. List-price realization
+was stable outside authorized discounts. The warehouse does not currently store
+carrier invoices or per-order shipping cost, so shipping impact must be analyzed
+alongside the finance freight report rather than from order data alone.
+
+CUSTOMER AND PRODUCT NOTES
+- Repeat customers generated 61% of net revenue.
+- Gold and Platinum loyalty members increased order frequency by 9%.
+- The AeroLite Running Shoe (Product ID 17) was among the top three revenue
+  products in the Northeast. It is being phased out next quarter as the
+  replacement model ramps.
+- Product ID 17 is being phased out next quarter. Sell-through of remaining
+  inventory is the priority; no new purchase orders will be placed.
+
+RISKS AND Q4 ACTIONS
+1. Rebid the Northeast parcel contract before the holiday peak.
+2. Add a shipping surcharge review to the weekly margin meeting.
+3. Hold discount approvals at current thresholds; do not use discounting to
+   offset freight costs.
+4. Clear Product ID 17 inventory and prepare the AeroLite 2 launch.
+5. Keep a $1,000 order-level margin review for Northeast footwear bundles.
+
+OUTLOOK
+Q4 revenue is expected to grow sequentially, but Northeast margin recovery
+depends on carrier renegotiation and freight surcharge pass-through. Finance
+will report shipping cost per order starting in November.

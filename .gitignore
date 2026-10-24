@@ -1,0 +1,23 @@
+# Secrets
+.env
+
+# Generated data and indexes
+data/*.csv
+data/business.db
+data/chroma/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.uv-cache/
+venv/
+.pytest_cache/
+.streamlit/secrets.toml
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.chrome-*/

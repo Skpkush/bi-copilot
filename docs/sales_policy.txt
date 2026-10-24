@@ -1,0 +1,81 @@
+SUMMIT OUTDOOR CO. — SALES, DISCOUNT & RETURN POLICY
+Effective date: January 1, 2026 | Owner: Revenue Operations | Version 4.2
+
+1. PURPOSE AND SCOPE
+This policy governs list pricing, discounts, approvals, returns, and regional
+price execution for all direct and partner-assisted sales in North America. It
+applies to orders booked in the CRM and fulfilled from any Summit Outdoor Co.
+distribution center. When a customer contract conflicts with this policy, the
+signed contract controls, but the deal desk must record the exception.
+
+2. DISCOUNT AUTHORITY
+Discounts are calculated on the merchandise subtotal before tax and shipping.
+
+- 0% to 10%: Account Executive may apply without additional approval.
+- Above 10% and up to 15%: written Sales Manager approval is required.
+- Above 15%: manager approval is required, plus VP of Sales sign-off and a
+  documented business case. Discounts above 15% require manager approval.
+- Above 25%: CFO approval is required. These deals are reviewed weekly by the
+  Revenue Committee and are expected to be rare strategic exceptions.
+
+Orders with a merchandise subtotal above $1,000:
+- The standard self-service discount cap is 10%.
+- Discounts from 10.1% through 15% require Sales Manager approval entered in
+  the CRM before the quote is sent.
+- Discounts above 15% require manager and VP of Sales approval, a margin
+  analysis, and a defined renewal or volume commitment.
+- Orders above $1,000 cannot be split into smaller orders to avoid the approval
+  threshold. Revenue Operations audits split-order patterns monthly.
+
+All discounts must be attached to a valid quote, reason code, and approver
+identity. Retroactive discounts are not permitted. Discounts may not be stacked
+with promotional codes unless the promotion terms explicitly allow it. The
+maximum combined discount is 25% absent CFO approval.
+
+3. MARGIN AND PRICE FLOORS
+Every quote must clear the product price floor, defined as cost plus a 35% gross
+margin. No discount may take a product below its floor without CFO approval.
+Shipping surcharges are pass-through charges and must not be absorbed by
+increasing the merchandise discount. Sales teams should use the CRM margin
+calculator before submitting an exception request.
+
+4. REGIONAL PRICING GUIDELINES
+Regional list prices reflect local cost-to-serve, freight lanes, and tax
+requirements. The standard regional index is:
+- Northeast: +3.0% (higher last-mile and port access costs)
+- West: +1.5%
+- Southeast: 0.0%
+- Midwest: -1.0%
+- Southwest: -0.5%
+
+The regional index is applied to the national list price before discounting.
+Account Executives may not adjust the index. Requests for a regional exception
+must go to the Deal Desk and include a freight quote. Northeast surcharges rose
+in Q3 2026 because of constrained carrier capacity; they are reviewed quarterly.
+
+5. RETURN AND EXCHANGE POLICY
+Customers may return unused, resalable merchandise within 30 days of delivery
+for a full refund of the merchandise price. Returns after 30 days and up to 60
+days may be accepted for store credit with manager approval. Items must include
+original packaging, tags, and proof of purchase.
+
+- Opened electronics and used fitness equipment are subject to a 15%
+  restocking fee.
+- Custom or personalized items are final sale unless defective.
+- Defective items are replaced at no cost; shipping charges are refunded.
+- Return shipping is free for defective goods and for orders above $1,000.
+  Otherwise, a $12 return label fee is deducted from the refund.
+- Refunds are issued to the original payment method within 5–7 business days
+  after the warehouse inspection.
+
+6. ORDER CANCELLATION AND STATUS
+Orders may be cancelled without fee before fulfillment. After fulfillment, the
+return process applies. Orders in Cancelled or Returned status are excluded from
+booked revenue and sales-commission calculations. Pending orders are included
+in pipeline reporting but not in recognized revenue.
+
+7. GOVERNANCE AND AUDIT
+Sales Managers review discount exceptions weekly. Revenue Operations samples 10%
+of approvals each month for completeness. Missing approvals are escalated to the
+regional director. Repeated policy violations may result in quote privileges
+being revoked. Questions about this policy should go to revenue.ops@summit.example.

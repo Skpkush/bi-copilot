@@ -1,0 +1,52 @@
+SUMMIT OUTDOOR CO. — PRODUCT LIFECYCLE NOTES
+Last updated: October 10, 2026 | Owner: Product Marketing
+
+1. DISCONTINUATIONS
+Product ID 17 (AeroLite Running Shoe) is being phased out next quarter. The
+current model will stop receiving new purchase orders immediately, and the last
+customer order date is November 30, 2026. Remaining inventory will be sold
+through at full price until November 15, then at a maximum authorized 15%
+clearance discount. No additional markdown may be applied without VP of Sales
+approval. Warranty and replacement parts remain available for 24 months.
+
+Other lifecycle changes:
+- Product ID 22 (Summit Headlamp) is being replaced by Product ID 34 in Q1 2027.
+  Existing stock remains sellable through the end of 2026.
+- Product ID 26 (Tundra Parka) is seasonal and will be de-emphasized after the
+  winter season; it is not fully discontinued.
+- Product ID 12 (PowerCore Kettlebell) had a cost-record error in the source
+  system. The corrected cost is in the master product table; no customer action
+  is needed.
+
+2. UPCOMING LAUNCHES
+- AeroLite 2 Running Shoe (Product ID 31): launch February 2027. Lighter midsole,
+  recycled upper, and the same fit last as Product ID 17. Pre-orders open
+  January 15, 2027. Target list price is $139.
+- TrailForge Pro 28L (Product ID 32): launch March 2027. Replaces the current
+  TrailForge Daypack in the premium daypack slot. Target list price is $109.
+- Summit Alpine Shell (Product ID 33): launch September 2027. A three-layer
+  hardshell positioned above the Summit Shell Jacket. Target list price is $229.
+- Summit Headlamp 2 (Product ID 34): launch January 2027. USB-C charging and a
+  brighter output; same $44 list price.
+
+3. SALES GUIDANCE
+When a customer asks about Product ID 17, explain the phase-out, confirm warranty
+coverage, and offer the AeroLite 2 pre-order when available. Do not promise
+inventory beyond the published sell-through date. For Northeast footwear
+bundles, use the standard bundle price and do not add a shipping discount; freight
+is handled separately by the regional policy.
+
+Product launch inventory is allocated by region based on the prior model's
+sell-through. Northeast receives the largest initial allocation for AeroLite 2
+because it was the top region for Product ID 17. Launch allocations are forecasts,
+not commitments, and may change after the November demand review.
+
+4. DATA AND REPORTING NOTES
+The product master uses product_id as the join key. Product names can contain
+legacy formatting such as trailing spaces, so reports should join on product_id
+rather than product_name. Discontinued products remain in the warehouse for
+historical reporting and should be filtered by lifecycle_status in the future
+product dimension. Until that field is available, use this document as the
+authoritative phase-out list.
+
+Questions: product.marketing@summit.example.
