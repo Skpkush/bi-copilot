@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -275,7 +276,7 @@ def render_chat_tab() -> None:
                 runner = load_agent_runner()
                 result = runner(prompt)
                 answer = result.answer
-                meta = f"Route: {result.route} · Mode: {result.mode}"
+                meta = f"Route: {result.route} · Mode: {result.mode} · {result.latency_ms:,} ms"
                 if result.rows:
                     meta += f" · {len(result.rows)} rows"
                 if result.documents:
@@ -309,6 +310,154 @@ def render_chat_tab() -> None:
             "meta": meta,
             "chart": chart,
         }
+    )
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_analysis(key: str) -> pd.DataFrame:
+    from src.analytics import run_analysis
+
+    return run_analysis(key)
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_kpis() -> dict:
+    from src.analytics import kpi_summary
+
+    return kpi_summary()
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_findings() -> list[str]:
+    from src.analytics import headline_findings
+
+    return headline_findings()
+
+
+def _bar(df: pd.DataFrame, x: str, y: str, title: str, **kwargs) -> None:
+    fig = px.bar(df, x=x, y=y, title=title, color_discrete_sequence=["#0F766E"], **kwargs)
+    fig.update_layout(template="plotly_white", height=340, margin=dict(l=10, r=10, t=48, b=30))
+    st.plotly_chart(fig, width="stretch")
+
+
+def render_dashboard_tab() -> None:
+    st.markdown(
+        '<p class="section-intro">Q3 2026 vs Q2 2026. Every figure comes from the '
+        "governed metric layer and the SQL library in <code>sql/analysis</code>.</p>",
+        unsafe_allow_html=True,
+    )
+    try:
+        kpi = load_kpis()
+    except Exception as exc:
+        st.error(f"Could not compute KPIs: {exc}")
+        return
+
+    cards = [
+        ("Revenue", "revenue", lambda v: f"${v / 1000:,.1f}K", "%"),
+        ("Orders", "orders", lambda v: f"{v:,.0f}", "%"),
+        ("AOV", "avg_order_value", lambda v: f"${v:,.0f}", "%"),
+        ("Gross margin", "gross_margin_pct", lambda v: f"{v:.1f}%", " pts"),
+        ("Customers", "active_customers", lambda v: f"{v:,.0f}", "%"),
+    ]
+    for column, (label, key, fmt, suffix) in zip(st.columns(len(cards)), cards):
+        item = kpi[key]
+        delta = item["delta"]
+        column.metric(
+            label,
+            fmt(item["current"]),
+            None if delta is None else f"{delta:+.1f}{suffix}",
+            help=f"Q2: {fmt(item['prior'])}",
+        )
+
+    with st.expander("Headline findings", expanded=True):
+        for finding in load_findings():
+            st.markdown(f"- {finding}")
+
+    left, right = st.columns(2)
+    with left:
+        monthly = load_analysis("monthly_growth")
+        fig = px.bar(
+            monthly, x="month", y="revenue", title="Monthly revenue and 3-month rolling average",
+            color_discrete_sequence=["#0F766E"],
+        )
+        fig.add_scatter(
+            x=monthly["month"], y=monthly["rolling_3m_revenue"], mode="lines+markers",
+            name="3-month avg", line=dict(color="#F59E0B"),
+        )
+        fig.update_layout(template="plotly_white", height=340, margin=dict(l=10, r=10, t=48, b=30))
+        st.plotly_chart(fig, width="stretch")
+    with right:
+        cat = load_analysis("category_margin")
+        fig = px.bar(
+            cat, x="category", y="revenue", color="gross_margin_pct",
+            color_continuous_scale="Teal", title="Q3 revenue by category (colour = gross margin %)",
+        )
+        fig.update_layout(template="plotly_white", height=340, margin=dict(l=10, r=10, t=48, b=30))
+        st.plotly_chart(fig, width="stretch")
+
+    left, right = st.columns(2)
+    with left:
+        _bar(load_analysis("discount_band_impact"), "discount_band", "gross_margin_pct",
+             "Gross margin % by discount band")
+    with right:
+        _bar(load_analysis("rfm_segments"), "segment", "revenue_share_pct",
+             "Lifetime revenue share by RFM segment")
+
+    left, right = st.columns(2)
+    with left:
+        st.markdown("**Customer concentration**")
+        st.dataframe(load_analysis("customer_pareto"), width="stretch", hide_index=True)
+    with right:
+        st.markdown("**Cohort repeat purchase**")
+        st.dataframe(load_analysis("cohort_retention"), width="stretch", hide_index=True)
+
+
+def render_quality_tab() -> None:
+    from src.config import QUALITY_REPORT_PATH
+
+    st.markdown(
+        '<p class="section-intro">Checks run on every load. The pipeline fails if any '
+        "check fails, so bad data never reaches the copilot.</p>",
+        unsafe_allow_html=True,
+    )
+    if not QUALITY_REPORT_PATH.exists():
+        st.warning("No quality report yet. Run `python -m src.load_data`.")
+        return
+    report = json.loads(QUALITY_REPORT_PATH.read_text(encoding="utf-8"))
+    checks = pd.DataFrame(report["checks"])
+    passed = int(checks["passed"].sum())
+    a, b, c = st.columns(3)
+    a.metric("Checks passed", f"{passed}/{len(checks)}")
+    a_tables = report["tables"]
+    b.metric("Raw order rows", f"{a_tables['orders']['raw_rows']:,}")
+    c.metric("Clean order rows", f"{a_tables['orders']['clean_rows']:,}")
+    checks["passed"] = checks["passed"].map({True: "✅", False: "❌"})
+    st.dataframe(checks, width="stretch", hide_index=True)
+    st.markdown("**Remaining nulls after cleaning (by design)**")
+    st.json({name: meta["nulls_after"] for name, meta in a_tables.items()})
+
+
+def render_audit_tab() -> None:
+    from src.audit import read_recent
+
+    st.markdown(
+        '<p class="section-intro">Every copilot answer is logged: route, the exact SQL, '
+        "cited documents, latency, and errors.</p>",
+        unsafe_allow_html=True,
+    )
+    events = read_recent(100)
+    if not events:
+        st.info("No questions asked yet.")
+        return
+    df = pd.DataFrame(events)
+    a, b, c = st.columns(3)
+    a.metric("Questions logged", len(df))
+    b.metric("Median latency", f"{int(df['latency_ms'].median()):,} ms")
+    c.metric("Error rate", f"{100 * df['error'].notna().mean():.0f}%")
+    st.dataframe(
+        df[["ts", "question", "route", "mode", "sql_rows", "documents", "latency_ms", "error"]],
+        width="stretch",
+        hide_index=True,
     )
 
 
@@ -352,17 +501,11 @@ def render_sql_runner_tab() -> None:
         "DDL and DML are blocked.</p>",
         unsafe_allow_html=True,
     )
-    default_sql = """SELECT
-  o.region,
-  COUNT(*) AS orders,
-  ROUND(SUM(o.quantity * o.unit_price * (1 - o.discount)), 2) AS revenue
-FROM orders o
-WHERE o.order_date BETWEEN '2026-07-01' AND '2026-09-30'
-  AND o.status NOT IN ('Cancelled', 'Returned')
-  AND o.region IS NOT NULL
-GROUP BY o.region
-ORDER BY revenue DESC;"""
-    sql = st.text_area("SQL query", value=default_sql, height=230)
+    from src.analytics import list_analyses
+
+    analyses = {analysis.title: analysis.sql for analysis in list_analyses()}
+    choice = st.selectbox("Start from the analysis library", options=list(analyses))
+    sql = st.text_area("SQL query", value=analyses[choice], height=300, key=f"sql_{choice}")
     run = st.button("Run query", type="primary")
     if not run:
         return
@@ -387,7 +530,19 @@ ORDER BY revenue DESC;"""
         st.error(f"Query failed: {exc}")
 
 
+@st.cache_resource(show_spinner="First run: building the warehouse and document index…")
+def bootstrap() -> bool:
+    """Build data and index on a fresh clone or a cloud deploy."""
+    from src.pipeline import ensure_ready
+
+    try:
+        return ensure_ready()
+    except Exception:
+        return False
+
+
 def main() -> None:
+    bootstrap()
     init_state()
     render_sidebar()
 
@@ -401,19 +556,32 @@ def main() -> None:
 
     if not DB_PATH.exists():
         st.error(
-            "The SQLite database is missing. From the project folder, run:\n\n"
-            "```bash\npython -m src.generate_data\npython -m src.load_data\n"
-            "python -m src.build_rag\n```"
+            "The SQLite database is missing and could not be built automatically. "
+            "From the project folder, run:\n\n```bash\npython -m src.pipeline\n```"
         )
         st.stop()
 
-    chat_tab, explorer_tab, sql_tab = st.tabs(["💬 Chat", "🗂️ Data Explorer", "🛠️ SQL Runner"])
-    with chat_tab:
-        render_chat_tab()
-    with explorer_tab:
-        render_data_explorer_tab()
-    with sql_tab:
-        render_sql_runner_tab()
+    tabs = st.tabs(
+        [
+            "💬 Chat",
+            "📊 Executive Dashboard",
+            "🛠️ SQL Runner",
+            "🗂️ Data Explorer",
+            "🧪 Data Quality",
+            "📜 Audit Log",
+        ]
+    )
+    renderers = (
+        render_chat_tab,
+        render_dashboard_tab,
+        render_sql_runner_tab,
+        render_data_explorer_tab,
+        render_quality_tab,
+        render_audit_tab,
+    )
+    for tab, render in zip(tabs, renderers):
+        with tab:
+            render()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,4 @@
+/// Folder holding orders.csv, products.csv, customers.csv (produced by python -m src.export_powerbi). Change this after cloning.
+expression DataFolder = "C:\Projects\bi-copilot\powerbi\data\" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: 1c865548-08a2-4498-9a2f-6f9e5a737b29
+

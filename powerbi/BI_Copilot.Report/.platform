@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "BI_Copilot"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "10a2fb94-b322-4529-87c6-99a04a91e468"
+  }
+}

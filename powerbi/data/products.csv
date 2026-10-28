@@ -1,0 +1,31 @@
+product_id,product_name,category,cost_price,list_price
+P001,Summit Shell Jacket,Apparel,68.0,139.0
+P002,TrailForge Daypack,Accessories,34.5,79.0
+P003,Ridgeline Tent 2P,Camping,142.0,289.0
+P004,BaseCamp Stove,Camping,41.25,94.5
+P005,Cascade Hiking Boots,Footwear,64.0,154.0
+P006,Merino Base Layer,Apparel,29.0,72.0
+P007,AeroPress Bottle,Accessories,12.75,34.0
+P008,Glacier Sleeping Bag,Camping,86.0,189.0
+P009,Talus Trekking Poles,Accessories,31.0,84.0
+P010,Northwind Fleece,Apparel,37.5,99.0
+P011,Summit Rain Pants,Apparel,42.0,108.0
+P012,PowerCore Kettlebell,Fitness,34.5,74.0
+P013,FlexBand Set,Fitness,11.0,39.0
+P014,Tempo Jump Rope,Fitness,5.4,24.0
+P015,Summit Yoga Mat,Fitness,18.0,58.0
+P016,Cinder Camp Chair,Camping,24.0,69.0
+P017,AeroLite Running Shoe,Footwear,58.0,132.0
+P018,Velocity Trail Shoe,Footwear,71.0,159.0
+P019,Cirrus Windbreaker,Apparel,33.0,89.0
+P020,Granite Duffel 40L,Accessories,49.0,119.0
+P021,Ember Hand Warmer,Accessories,7.2,26.0
+P022,Summit Headlamp,Accessories,15.0,44.0
+P023,Ridge Compression Socks,Apparel,8.0,28.0
+P024,Northstar Beanie,Apparel,9.5,32.0
+P025,Alpine Trek Poles,Accessories,39.0,99.0
+P026,Tundra Parka,Apparel,118.0,269.0
+P027,Creek Sandal,Footwear,26.0,69.0
+P028,Summit Hydration Pack,Accessories,44.0,112.0
+P029,BaseCamp Cook Set,Camping,36.0,89.0
+P030,Trail Mix Kit,Accessories,6.5,21.0

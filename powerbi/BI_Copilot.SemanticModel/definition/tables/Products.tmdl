@@ -1,0 +1,45 @@
+/// Product master (30). cost_price excludes freight.
+table Products
+	lineageTag: 6226e496-72c9-4bd7-b0c0-d672bb8a4f3a
+
+	column product_id
+		dataType: string
+		isHidden
+		isKey
+		lineageTag: 53ebe380-bca3-4482-a1ac-9de83355e18b
+		sourceColumn: product_id
+
+	column product_name
+		dataType: string
+		lineageTag: 17e05873-bea3-40b4-a2b5-e2895cb4d243
+		sourceColumn: product_name
+
+	column category
+		dataType: string
+		lineageTag: 091c70ab-d9b5-441a-a5e5-873530d9813d
+		sourceColumn: category
+
+	column cost_price
+		dataType: double
+		formatString: \$#,0.00
+		lineageTag: e3356f33-fe4c-4018-8c3d-ef0a378c3dc2
+		summarizeBy: none
+		sourceColumn: cost_price
+
+	column list_price
+		dataType: double
+		formatString: \$#,0.00
+		lineageTag: 0aa68502-9aaf-4ae3-9ac0-ad22f308bb30
+		summarizeBy: none
+		sourceColumn: list_price
+
+	partition Products = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(DataFolder & "products.csv"), [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {{"product_id", type text}, {"product_name", type text}, {"category", type text}, {"cost_price", type number}, {"list_price", type number}}, "en-US")
+				in
+				    Typed
+

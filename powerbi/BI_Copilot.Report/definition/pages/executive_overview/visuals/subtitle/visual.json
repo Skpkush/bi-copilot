@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
+  "name": "subtitle",
+  "position": {
+    "x": 20,
+    "y": 55,
+    "z": 1000,
+    "width": 1100,
+    "height": 30,
+    "tabOrder": 1000
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "Quarter is set in the Filters pane (default Q3 2026). Measures mirror src/metrics.py.",
+                    "textStyle": {
+                      "fontSize": "10pt",
+                      "color": "#0F172A"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

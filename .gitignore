@@ -21,3 +21,12 @@ Thumbs.db
 .vscode/
 .idea/
 .chrome-*/
+
+# Runtime artifacts
+data/quality_report.json
+data/audit_log.jsonl
+.ruff_cache/
+
+# Power BI project local state
+powerbi/**/.pbi/localSettings.json
+powerbi/**/.pbi/cache.abf

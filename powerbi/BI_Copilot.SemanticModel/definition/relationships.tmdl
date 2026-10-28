@@ -1,0 +1,12 @@
+relationship Orders_Products
+	fromColumn: Orders.product_id
+	toColumn: Products.product_id
+
+relationship Orders_Customers
+	fromColumn: Orders.customer_id
+	toColumn: Customers.customer_id
+
+relationship Orders_Date
+	fromColumn: Orders.order_date
+	toColumn: Date.Date
+

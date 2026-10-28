@@ -1,0 +1,4 @@
+/// Summit Outdoor Co. sales semantic model. Measures mirror src/metrics.py.
+database
+	compatibilityLevel: 1601
+

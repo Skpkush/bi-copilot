@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      BI_COPILOT_OFFLINE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: ruff check .
+      - name: Build warehouse, index and report
+        run: python -m src.pipeline --local
+      - name: Unit and integration tests
+        run: pytest -q
+      - name: Evaluation gate (fail below 90%)
+        run: python -m src.evaluate --min 0.9

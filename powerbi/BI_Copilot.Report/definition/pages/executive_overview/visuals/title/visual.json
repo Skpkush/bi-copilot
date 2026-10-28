@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
+  "name": "title",
+  "position": {
+    "x": 20,
+    "y": 10,
+    "z": 0,
+    "width": 900,
+    "height": 50,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "Summit Outdoor Co. | Q3 2026 business review",
+                    "textStyle": {
+                      "fontSize": "20pt",
+                      "color": "#0F172A",
+                      "fontWeight": "bold"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

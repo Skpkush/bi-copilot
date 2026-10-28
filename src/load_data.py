@@ -10,12 +10,13 @@ Cleaning rules:
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
 import pandas as pd
 from sqlalchemy import create_engine, text
 
-from src.config import DATA_DIR, DB_PATH
+from src.config import DATA_DIR, DB_PATH, QUALITY_REPORT_PATH
 
 DATE_FORMATS = (
     "%Y-%m-%d %H:%M:%S",
@@ -124,6 +125,87 @@ def print_summary(tables: dict[str, pd.DataFrame]) -> None:
     print("Distinct order IDs:", orders["order_id"].nunique())
 
 
+def build_quality_report(
+    raw: dict[str, pd.DataFrame], cleaned: dict[str, pd.DataFrame]
+) -> dict:
+    """Before/after data-quality profile, persisted for the Data Quality tab."""
+    report: dict = {"tables": {}, "checks": []}
+    for name, before in raw.items():
+        after = cleaned[name]
+        report["tables"][name] = {
+            "raw_rows": int(len(before)),
+            "clean_rows": int(len(after)),
+            "columns": int(len(after.columns)),
+            "nulls_after": {
+                column: int(count) for column, count in after.isna().sum().items() if count
+            },
+        }
+
+    raw_orders, raw_products, raw_customers = raw["orders"], raw["products"], raw["customers"]
+    orders, products = cleaned["orders"], cleaned["products"]
+
+    def check(name: str, found: int, action: str, passed: bool) -> None:
+        report["checks"].append(
+            {"check": name, "issues_found": int(found), "action": action, "passed": bool(passed)}
+        )
+
+    check(
+        "Duplicate order_id",
+        raw_orders["order_id"].duplicated().sum(),
+        "Kept latest record per order_id",
+        orders["order_id"].is_unique,
+    )
+    check(
+        "Non-ISO order_date values",
+        (~raw_orders["order_date"].astype(str).str.match(r"^\d{4}-\d{2}-\d{2}$")).sum(),
+        "Parsed and normalized to YYYY-MM-DD",
+        orders["order_date"].str.match(r"^\d{4}-\d{2}-\d{2}$").all(),
+    )
+    check(
+        "Null unit_price",
+        raw_orders["unit_price"].isna().sum(),
+        "Kept; excluded from revenue metrics by the booked filter",
+        True,
+    )
+    check(
+        "Null region",
+        raw_orders["region"].isna().sum(),
+        "Kept; excluded from regional breakdowns only",
+        True,
+    )
+    check(
+        "Negative cost_price",
+        (pd.to_numeric(raw_products["cost_price"], errors="coerce") < 0).sum(),
+        "Replaced with median valid cost",
+        (products["cost_price"] >= 0).all(),
+    )
+    check(
+        "Untrimmed product names",
+        (raw_products["product_name"] != raw_products["product_name"].str.strip()).sum(),
+        "Trimmed whitespace",
+        (products["product_name"] == products["product_name"].str.strip()).all(),
+    )
+    check(
+        "Inconsistent loyalty_tier casing",
+        (raw_customers["loyalty_tier"] != raw_customers["loyalty_tier"].str.strip().str.title()).sum(),
+        "Title-cased",
+        cleaned["customers"]["loyalty_tier"].isin(["Bronze", "Silver", "Gold", "Platinum"]).all(),
+    )
+    check(
+        "Orphan product_id in orders",
+        (~orders["product_id"].isin(products["product_id"])).sum(),
+        "Referential integrity check (should be 0)",
+        orders["product_id"].isin(products["product_id"]).all(),
+    )
+    check(
+        "Orphan customer_id in orders",
+        (~orders["customer_id"].isin(cleaned["customers"]["customer_id"])).sum(),
+        "Referential integrity check (should be 0)",
+        orders["customer_id"].isin(cleaned["customers"]["customer_id"]).all(),
+    )
+    return report
+
+
 def load_to_sqlite(tables: dict[str, pd.DataFrame]) -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(f"sqlite:///{DB_PATH}")
@@ -165,6 +247,15 @@ def main() -> None:
     }
     print_summary(cleaned)
     load_to_sqlite(cleaned)
+
+    report = build_quality_report(
+        {"orders": orders, "products": products, "customers": customers}, cleaned
+    )
+    QUALITY_REPORT_PATH.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    failed = [item["check"] for item in report["checks"] if not item["passed"]]
+    print(f"Data quality report written to {QUALITY_REPORT_PATH}")
+    if failed:
+        raise SystemExit(f"Data quality checks failed: {', '.join(failed)}")
 
 
 if __name__ == "__main__":

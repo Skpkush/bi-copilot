@@ -1,0 +1,70 @@
+/// Calendar for the data window, marked as the date table.
+table Date
+	lineageTag: 6d2bce92-06b5-4ee7-97f4-f2aac34d83b1
+	dataCategory: Time
+
+	column Date
+		dataType: dateTime
+		isKey
+		formatString: yyyy-mm-dd
+		lineageTag: ed666c57-361b-49cd-9e04-5d2184679934
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Date]
+
+	column Year
+		dataType: int64
+		formatString: 0
+		lineageTag: 61424ff8-0fa1-4a82-b357-17a862a1dd90
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Year]
+
+	column Quarter
+		dataType: string
+		lineageTag: d0ba8220-dc08-4c52-b0f7-94164e87e717
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Quarter]
+		sortByColumn: 'Quarter Number'
+
+	column 'Quarter Number'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 43022a84-b463-4be4-8842-d6655badc1ac
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Quarter Number]
+
+	column Month
+		dataType: string
+		lineageTag: 92855524-70b8-4e26-a7bf-4d001543f198
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Month]
+		sortByColumn: 'Month Number'
+
+	column 'Month Number'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 27a6b254-23d0-40e9-baa2-a1cb1a00742f
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Month Number]
+
+	partition Date = calculated
+		mode: import
+		source =
+				VAR Base = CALENDAR ( DATE ( 2026, 1, 1 ), DATE ( 2026, 9, 30 ) )
+				RETURN
+				    ADDCOLUMNS (
+				        Base,
+				        "Year", YEAR ( [Date] ),
+				        "Quarter", "Q" & QUARTER ( [Date] ) & " " & YEAR ( [Date] ),
+				        "Quarter Number", YEAR ( [Date] ) * 10 + QUARTER ( [Date] ),
+				        "Month", FORMAT ( [Date], "MMM yyyy" ),
+				        "Month Number", YEAR ( [Date] ) * 100 + MONTH ( [Date] )
+				    )
+

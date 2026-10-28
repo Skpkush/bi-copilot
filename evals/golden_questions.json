@@ -1,0 +1,67 @@
+[
+  {
+    "id": "top-products-northeast",
+    "question": "What were the top 3 products by revenue in the Northeast last quarter?",
+    "expected_route": "sql",
+    "expected_rows": 3,
+    "must_contain": ["Velocity Trail Shoe", "SQL query result"]
+  },
+  {
+    "id": "regional-revenue",
+    "question": "Show revenue by region for last quarter",
+    "expected_route": "sql",
+    "expected_columns": ["region", "revenue"],
+    "must_contain": ["Northeast"]
+  },
+  {
+    "id": "monthly-trend",
+    "question": "What is the monthly revenue trend?",
+    "expected_route": "sql",
+    "expected_columns": ["month", "revenue"],
+    "expected_rows": 9
+  },
+  {
+    "id": "top-customers",
+    "question": "Who are the top 5 customers by revenue last quarter?",
+    "expected_route": "sql",
+    "expected_rows": 5,
+    "expected_columns": ["customer_name", "revenue"]
+  },
+  {
+    "id": "category-margin",
+    "question": "Which product category had the highest revenue last quarter?",
+    "expected_route": "sql",
+    "expected_columns": ["category", "gross_margin_pct"]
+  },
+  {
+    "id": "discount-policy",
+    "question": "What is the discount policy for orders above $1000?",
+    "expected_route": "docs",
+    "must_contain": ["Sales Manager approval", "sales_policy.txt"]
+  },
+  {
+    "id": "return-policy",
+    "question": "What are the rules for returns?",
+    "expected_route": "docs",
+    "must_contain": ["Sources:"]
+  },
+  {
+    "id": "discontinued",
+    "question": "Which products are being discontinued or phased out?",
+    "expected_route": "docs",
+    "must_contain": ["product_notes.txt"]
+  },
+  {
+    "id": "margin-drop",
+    "question": "Why did profit margins drop in Q3, and which region was most affected?",
+    "expected_route": "both",
+    "expected_columns": ["region", "gross_margin_pct", "margin_change_pts"],
+    "must_contain": ["8%", "Northeast", "q3_summary.txt", "SQL query result", "not** visible"]
+  },
+  {
+    "id": "greeting",
+    "question": "Hello!",
+    "expected_route": "none",
+    "must_contain": ["Sources:"]
+  }
+]

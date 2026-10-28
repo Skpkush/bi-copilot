@@ -11,6 +11,7 @@ returns the answer plus structured artifacts for the Streamlit chart layer.
 from __future__ import annotations
 
 import re
+import time
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Literal, TypedDict
@@ -19,6 +20,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 
+from src import audit
 from src.build_rag import get_vectorstore
 from src.config import (
     LATEST_QUARTER,
@@ -28,6 +30,17 @@ from src.config import (
     offline_mode,
     openai_api_key,
 )
+from src.metrics import (
+    BOOKED_FILTER,
+    COGS_LINE,
+    LATEST_QUARTER_FILTER,
+    NET_LINE,
+    PRIOR_QUARTER_END,
+    PRIOR_QUARTER_FILTER,
+    PRIOR_QUARTER_START,
+    metric_glossary,
+    select_metrics,
+)
 from src.sql_guard import (
     SQLResult,
     execute_readonly_query,
@@ -36,10 +49,6 @@ from src.sql_guard import (
 )
 
 REGIONS = ("Northeast", "Southeast", "Midwest", "Southwest", "West")
-STATUS_FILTER = "o.status NOT IN ('Cancelled', 'Returned')"
-QUARTER_FILTER = (
-    f"o.order_date BETWEEN '{LATEST_QUARTER_START}' AND '{LATEST_QUARTER_END}'"
-)
 
 AGENT_INSTRUCTIONS = """You are BI Copilot, a careful senior business analyst for Summit Outdoor Co.
 Choose the smallest set of sources that can answer the question:
@@ -96,6 +105,7 @@ class AgentResult:
     documents: list[dict[str, Any]] = field(default_factory=list)
     mode: str = "offline-demo"
     error: str | None = None
+    latency_ms: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -107,6 +117,7 @@ class AgentResult:
             "documents": self.documents,
             "mode": self.mode,
             "error": self.error,
+            "latency_ms": self.latency_ms,
         }
 
 
@@ -264,47 +275,66 @@ def _heuristic_sql_plan(question: str) -> SQLPlan:
     top_match = re.search(r"\btop\s+(\d+)\b", q)
     limit = min(int(top_match.group(1)), 25) if top_match else 5
 
-    common_filter = f"{QUARTER_FILTER} AND {STATUS_FILTER}{region_clause}"
+    common_filter = f"{LATEST_QUARTER_FILTER} AND {BOOKED_FILTER}{region_clause}"
 
     if re.search(r"\bmargin|profit", q) and re.search(r"\bregion|affected|which", q):
+        # Compare product-level gross margin in the latest quarter with the prior
+        # quarter, per region. Freight is not in the warehouse, so this tells us
+        # whether the decline is visible in product economics at all.
+        cur = LATEST_QUARTER_FILTER
+        prior = PRIOR_QUARTER_FILTER
         sql = f"""
+WITH by_region AS (
+  SELECT
+    o.region,
+    SUM(CASE WHEN {cur} THEN {NET_LINE} END) AS rev_cur,
+    SUM(CASE WHEN {cur} THEN {NET_LINE} - {COGS_LINE} END) AS gp_cur,
+    SUM(CASE WHEN {prior} THEN {NET_LINE} END) AS rev_prior,
+    SUM(CASE WHEN {prior} THEN {NET_LINE} - {COGS_LINE} END) AS gp_prior
+  FROM orders o
+  JOIN products p ON p.product_id = o.product_id
+  WHERE {BOOKED_FILTER}
+    AND o.region IS NOT NULL
+    AND o.order_date BETWEEN '{PRIOR_QUARTER_START}' AND '{LATEST_QUARTER_END}'
+  GROUP BY o.region
+)
 SELECT
-  o.region,
-  COUNT(*) AS orders,
-  ROUND(SUM(o.quantity * o.unit_price * (1 - o.discount)), 2) AS revenue,
-  ROUND(AVG(o.quantity * o.unit_price * (1 - o.discount)), 2) AS avg_order_value,
-  ROUND(100.0 * AVG(o.discount), 1) AS avg_discount_pct
-FROM orders o
-JOIN products p ON p.product_id = o.product_id
-WHERE {common_filter}
-  AND o.region IS NOT NULL
-  AND o.unit_price IS NOT NULL
-GROUP BY o.region
+  region,
+  ROUND(rev_cur, 2) AS revenue,
+  ROUND(100.0 * gp_cur / NULLIF(rev_cur, 0), 1) AS gross_margin_pct,
+  ROUND(100.0 * gp_prior / NULLIF(rev_prior, 0), 1) AS prior_gross_margin_pct,
+  ROUND(100.0 * gp_cur / NULLIF(rev_cur, 0) - 100.0 * gp_prior / NULLIF(rev_prior, 0), 1)
+    AS margin_change_pts
+FROM by_region
 ORDER BY revenue DESC
 """
         return SQLPlan(
             sql=sql.strip(),
-            explanation="Regional Q3 revenue exposure for the margin discussion.",
+            explanation="Q3 vs Q2 product gross margin by region.",
         )
 
-    if "product" in q and re.search(r"\btop\b|\bbest\b|\bhighest\b", q):
-        metric = "units" if "unit" in q and "revenue" not in q else "revenue"
-        if metric == "units":
-            select_metric = "SUM(o.quantity) AS units"
-            order_metric = "units"
-        else:
-            select_metric = (
-                "ROUND(SUM(o.quantity * o.unit_price * (1 - o.discount)), 2) AS revenue"
-            )
-            order_metric = "revenue"
+    if "category" in q or "categories" in q:
         sql = f"""
-SELECT p.product_name, {select_metric}
+SELECT p.category,
+  {select_metrics("revenue", "gross_profit", "gross_margin_pct")}
 FROM orders o
 JOIN products p ON p.product_id = o.product_id
 WHERE {common_filter}
-  AND o.unit_price IS NOT NULL
+GROUP BY p.category
+ORDER BY revenue DESC
+"""
+        return SQLPlan(sql=sql.strip(), explanation="Revenue and margin by category.")
+
+    if "product" in q and re.search(r"\btop\b|\bbest\b|\bhighest\b", q):
+        metric = "units" if "unit" in q and "revenue" not in q else "revenue"
+        sql = f"""
+SELECT p.product_name,
+  {select_metrics(metric)}
+FROM orders o
+JOIN products p ON p.product_id = o.product_id
+WHERE {common_filter}
 GROUP BY p.product_id, p.product_name
-ORDER BY {order_metric} DESC
+ORDER BY {metric} DESC
 LIMIT {limit}
 """
         return SQLPlan(sql=sql.strip(), explanation=f"Top {limit} products in scope.")
@@ -312,11 +342,10 @@ LIMIT {limit}
     if "customer" in q and re.search(r"\btop\b|\bbest\b|\bhighest\b", q):
         sql = f"""
 SELECT c.customer_name,
-       ROUND(SUM(o.quantity * o.unit_price * (1 - o.discount)), 2) AS revenue
+  {select_metrics("revenue", "orders")}
 FROM orders o
 JOIN customers c ON c.customer_id = o.customer_id
 WHERE {common_filter}
-  AND o.unit_price IS NOT NULL
 GROUP BY c.customer_id, c.customer_name
 ORDER BY revenue DESC
 LIMIT {limit}
@@ -324,13 +353,12 @@ LIMIT {limit}
         return SQLPlan(sql=sql.strip(), explanation=f"Top {limit} customers in scope.")
 
     if "month" in q or "trend" in q:
+        # Trends need history, so look at the full dataset rather than one quarter.
         sql = f"""
 SELECT substr(o.order_date, 1, 7) AS month,
-       ROUND(SUM(o.quantity * o.unit_price * (1 - o.discount)), 2) AS revenue,
-       COUNT(*) AS orders
+  {select_metrics("revenue", "orders")}
 FROM orders o
-WHERE {common_filter}
-  AND o.unit_price IS NOT NULL
+WHERE {BOOKED_FILTER}{region_clause}
 GROUP BY month
 ORDER BY month
 """
@@ -339,11 +367,9 @@ ORDER BY month
     if ("region" in q or "regional" in q) and re.search(r"revenue|sales", q):
         sql = f"""
 SELECT o.region,
-       ROUND(SUM(o.quantity * o.unit_price * (1 - o.discount)), 2) AS revenue,
-       COUNT(*) AS orders
+  {select_metrics("revenue", "orders")}
 FROM orders o
 WHERE {common_filter}
-  AND o.unit_price IS NOT NULL
   AND o.region IS NOT NULL
 GROUP BY o.region
 ORDER BY revenue DESC
@@ -351,12 +377,10 @@ ORDER BY revenue DESC
         return SQLPlan(sql=sql.strip(), explanation="Revenue by region.")
 
     sql = f"""
-SELECT COUNT(*) AS orders,
-       ROUND(SUM(o.quantity * o.unit_price * (1 - o.discount)), 2) AS revenue,
-       ROUND(AVG(o.quantity * o.unit_price * (1 - o.discount)), 2) AS avg_order_value
+SELECT
+  {select_metrics("orders", "revenue", "avg_order_value")}
 FROM orders o
 WHERE {common_filter}
-  AND o.unit_price IS NOT NULL
 """
     return SQLPlan(sql=sql.strip(), explanation="Summary KPIs for the latest quarter.")
 
@@ -371,11 +395,12 @@ def _generate_sql_online(question: str, feedback: str | None = None) -> SQLPlan:
         "PRAGMA, or multiple statements.\n"
         "- Use the schema exactly. Join products on product_id and customers on "
         "customer_id when needed.\n"
-        "- Revenue = quantity * unit_price * (1 - discount).\n"
-        "- Exclude Cancelled and Returned orders from booked revenue.\n"
-        "- Shipping cost is not in the warehouse. For a margin-drop question that "
-        "asks which region was affected, query Q3 revenue by region as an exposure "
-        "proxy; do not claim that product cost data explains freight.\n"
+        "- Use these governed metric definitions exactly:\n"
+        f"{metric_glossary()}\n"
+        "- Shipping cost is not in the warehouse. For a margin question, compute "
+        "product gross_margin_pct (join products) and compare it with the prior "
+        f"quarter ({PRIOR_QUARTER_START} through {PRIOR_QUARTER_END}); never claim "
+        "product cost data explains freight.\n"
         f"- The latest complete quarter in the data is {LATEST_QUARTER} "
         f"({LATEST_QUARTER_START} through {LATEST_QUARTER_END}). Treat "
         "'last quarter' as that period.\n"
@@ -448,9 +473,35 @@ def sql_query(question: str) -> str:
     return result["sql_markdown"]
 
 
+def _stems(text: str) -> set[str]:
+    """Crude 6-character stems so 'discontinued' matches 'discontinuations'."""
+    return {token[:6] for token in _tokenize(text) if len(token) > 2}
+
+
+def _hybrid_rerank(question: str, matches: list, k: int) -> list:
+    """Re-rank vector candidates by semantic similarity plus keyword overlap.
+
+    Pure vector search misses exact business terms (policy names, product IDs)
+    often enough to matter; a lexical boost on a wider candidate pool fixes that
+    without a second index.
+    """
+    query = _stems(question)
+    if not query:
+        return matches[:k]
+
+    def score(item) -> float:
+        document, distance = item
+        similarity = 1.0 - float(distance or 0.0)
+        overlap = len(query & _stems(document.page_content)) / len(query)
+        return 0.5 * similarity + 0.5 * overlap
+
+    return sorted(matches, key=score, reverse=True)[:k]
+
+
 def _document_search_impl(question: str, k: int = 4) -> list[dict[str, Any]]:
     vectorstore = get_vectorstore()
-    matches = vectorstore.similarity_search_with_score(question, k=k)
+    candidates = vectorstore.similarity_search_with_score(question, k=max(12, 3 * k))
+    matches = _hybrid_rerank(question, candidates, k)
     hits: list[dict[str, Any]] = []
     for document, distance in matches:
         source = document.metadata.get("source", "unknown")
@@ -587,7 +638,8 @@ def _document_evidence(
     """Select the most query-relevant document paragraphs for a grounded answer."""
     query_tokens = _tokenize(question)
     candidates: list[tuple[float, str, str]] = []
-    for hit in hits:
+    query_stems = _stems(question)
+    for rank, hit in enumerate(hits):
         source = hit["source"]
         content = hit["content"]
         for block in re.split(r"\n\s*\n", content):
@@ -597,7 +649,8 @@ def _document_evidence(
             block_lower = block.lower()
             block_tokens = _tokenize(block)
             overlap = len(query_tokens & block_tokens)
-            score = overlap * 2.0
+            # Stem overlap catches inflections; retrieval rank breaks ties.
+            score = overlap * 2.0 + len(query_stems & _stems(block)) + (len(hits) - rank) * 0.5
             for phrase in (
                 "$1,000",
                 "discount",
@@ -639,6 +692,45 @@ def _document_evidence(
     return "\n\n".join(rendered), used_sources
 
 
+def _margin_reconciliation(rows: list[dict[str, Any]]) -> str:
+    """Compare document claims against product-level margin, without assuming agreement."""
+    valid = [
+        row
+        for row in rows
+        if isinstance(row.get("margin_change_pts"), (int, float))
+        and isinstance(row.get("revenue"), (int, float))
+    ]
+    if not valid:
+        return "The warehouse query returned no comparable regional margins."
+
+    total_rev = sum(row["revenue"] for row in valid)
+    # Revenue-weighted margin change across regions.
+    weighted = sum(row["margin_change_pts"] * row["revenue"] for row in valid) / total_rev
+    worst = min(valid, key=lambda row: row["margin_change_pts"])
+    biggest = max(valid, key=lambda row: row["revenue"])
+
+    direction = "fell" if weighted < 0 else "rose"
+    text = (
+        f"Product-level gross margin (revenue minus product cost) {direction} "
+        f"{abs(weighted):.1f} pts quarter-over-quarter, revenue-weighted. "
+        f"{biggest['region']} carries the most Q3 revenue (${_format_number(biggest['revenue'])}); "
+        f"{worst['region']} had the weakest margin change ({worst['margin_change_pts']:+.1f} pts)."
+    )
+    if weighted >= 0:
+        text += (
+            " So the decline is **not** visible in product economics: if margins "
+            "dropped, the cause sits in costs the warehouse does not hold (for example, "
+            "freight invoices). Treat the documented figure as unverified until "
+            "shipping cost data is loaded."
+        )
+    else:
+        text += (
+            " The warehouse confirms a product-level decline; freight is not stored, "
+            "so the shipping share of it cannot be quantified here."
+        )
+    return text
+
+
 def _combined_lead(
     question: str,
     hits: list[dict[str, Any]],
@@ -655,14 +747,11 @@ def _combined_lead(
         evidence_plain = evidence_plain[:420].rsplit(" ", 1)[0] + " …"
     sql_takeaway = _sql_takeaway(columns, rows)
 
-    if ("margin" in q or "profit" in q) and ("region" in q or "affected" in q):
-        return (
-            "The Q3 business summary attributes the margin decline to higher shipping "
-            "costs in the Northeast, making the Northeast the most affected region. "
-            f"Warehouse data is consistent with that exposure: {sql_takeaway} "
-            "Shipping cost is not stored at order level, so SQL can show revenue "
-            "exposure but cannot independently quantify the 8% freight impact."
-        )
+    if ("margin" in q or "profit" in q) and "margin_change_pts" in columns:
+        check = _margin_reconciliation(rows)
+        if evidence_plain:
+            return f"**What the documents say:** {evidence_plain}\n\n**What the warehouse shows:** {check}"
+        return f"**What the warehouse shows:** {check}"
     if evidence_plain:
         return f"{evidence_plain}\n\nFrom the warehouse: {sql_takeaway}"
     return f"Combining the available sources: {sql_takeaway}"
@@ -707,7 +796,7 @@ def _offline_answer(state: AgentState) -> str:
     else:
         parts.append("**Answer**\n")
         if hits:
-            evidence, _ = _document_evidence(hits, question)
+            evidence, _ = _document_evidence(hits, question, max_blocks=2)
             parts.append(evidence or "I found relevant documents but could not extract a passage.")
             parts.append(
                 "\n\nThe policy and lifecycle documents are the authoritative source "
@@ -840,7 +929,22 @@ def answer_question(question: str) -> AgentResult:
         raise ValueError("Question cannot be empty.")
 
     state: AgentState = {"question": question.strip(), "degraded": False}
+    started = time.perf_counter()
     final = _build_graph().invoke(state)
+    latency_ms = round(1000 * (time.perf_counter() - started))
+    audit.record(
+        {
+            "question": state["question"],
+            "route": final.get("route"),
+            "route_reason": final.get("route_reason"),
+            "mode": final.get("mode"),
+            "sql": final.get("sql"),
+            "sql_rows": len(final.get("sql_rows", [])),
+            "documents": sorted({hit.get("source") for hit in final.get("documents", [])}),
+            "error": final.get("sql_error") or final.get("doc_error") or None,
+            "latency_ms": latency_ms,
+        }
+    )
     return AgentResult(
         answer=final.get("answer", ""),
         route=final.get("route", "none"),
@@ -850,6 +954,7 @@ def answer_question(question: str) -> AgentResult:
         documents=final.get("documents", []),
         mode=final.get("mode", "offline-demo"),
         error=final.get("sql_error") or final.get("doc_error") or None,
+        latency_ms=latency_ms,
     )
 
 

@@ -1,0 +1,253 @@
+/// Cleaned order lines (490). One row per order_id.
+table Orders
+	lineageTag: 72a67e81-0fd0-4486-932a-a7a876ad32dc
+
+	/// Net booked revenue: quantity x unit_price x (1 - discount), excluding Cancelled/Returned. Mirrors metrics.revenue.
+	measure Revenue = CALCULATE ( SUM ( Orders[Line Revenue] ), Orders[Is Booked] = TRUE () )
+		formatString: \$#,0
+		displayFolder: Core
+		lineageTag: 810b8156-6025-4aa5-8ce2-96b49272fb5b
+
+	/// Distinct booked orders. Mirrors metrics.orders.
+	measure 'Booked Orders' = CALCULATE ( DISTINCTCOUNT ( Orders[order_id] ), Orders[Is Booked] = TRUE () )
+		formatString: #,0
+		displayFolder: Core
+		lineageTag: ee6b62d1-de24-4047-a5ed-cc917619c028
+
+	measure Units = CALCULATE ( SUM ( Orders[quantity] ), Orders[Is Booked] = TRUE () )
+		formatString: #,0
+		displayFolder: Core
+		lineageTag: 42a43a1d-fbbc-4c2d-8e84-90ad23cbeab8
+
+	/// Product cost of goods sold (excludes freight).
+	measure COGS = CALCULATE ( SUM ( Orders[Line COGS] ), Orders[Is Booked] = TRUE () )
+		formatString: \$#,0
+		displayFolder: Core
+		lineageTag: 8bd392dc-ef96-45a2-9429-5f464f09516a
+
+	measure 'Gross Profit' = [Revenue] - [COGS]
+		formatString: \$#,0
+		displayFolder: Core
+		lineageTag: bcd49b02-890b-48ce-8ea5-7ff7d2ec215b
+
+	/// Product-level gross margin (excludes freight). Mirrors metrics.gross_margin_pct.
+	measure 'Gross Margin %' = DIVIDE ( [Gross Profit], [Revenue] )
+		formatString: 0.0%
+		displayFolder: Core
+		lineageTag: 46b7ac06-e027-4a7f-9f49-128fdb0d9519
+
+	/// Revenue per booked order.
+	measure AOV = DIVIDE ( [Revenue], [Booked Orders] )
+		formatString: \$#,0.00
+		displayFolder: Core
+		lineageTag: d377080a-ebd0-490c-9c20-c912082216f0
+
+	measure 'Avg Discount %' = CALCULATE ( AVERAGE ( Orders[discount] ), Orders[Is Booked] = TRUE () )
+		formatString: 0.0%
+		displayFolder: Core
+		lineageTag: 2696219b-574a-44d7-9093-7ab710ef1df6
+
+	measure 'Active Customers' = CALCULATE ( DISTINCTCOUNT ( Orders[customer_id] ), Orders[Is Booked] = TRUE () )
+		formatString: #,0
+		displayFolder: Core
+		lineageTag: 8f941e53-9724-4e9c-9083-941a86f59f19
+
+	measure 'Avg Units per Order' = DIVIDE ( [Units], [Booked Orders] )
+		formatString: 0.00
+		displayFolder: Core
+		lineageTag: e7b79b30-3e57-41e1-8a3b-e630221ee3b9
+
+	measure 'Revenue PQ' = CALCULATE ( [Revenue], DATEADD ( 'Date'[Date], -1, QUARTER ) )
+		formatString: \$#,0
+		displayFolder: Time comparison
+		lineageTag: 0889dee9-a760-4d21-a9c8-9f04e4268f82
+
+	measure 'Revenue QoQ %' = DIVIDE ( [Revenue] - [Revenue PQ], [Revenue PQ] )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Time comparison
+		lineageTag: 00fec693-8849-42d4-be66-ca70a7d54b81
+
+	measure 'Orders QoQ %' =
+			VAR Prior = CALCULATE ( [Booked Orders], DATEADD ( 'Date'[Date], -1, QUARTER ) )
+			RETURN DIVIDE ( [Booked Orders] - Prior, Prior )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Time comparison
+		lineageTag: 244505f1-0a50-409b-843e-15cf74d0918a
+
+	measure 'AOV QoQ %' =
+			VAR Prior = CALCULATE ( [AOV], DATEADD ( 'Date'[Date], -1, QUARTER ) )
+			RETURN DIVIDE ( [AOV] - Prior, Prior )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Time comparison
+		lineageTag: c001b3ae-9609-4468-9bdf-7010f2696101
+
+	measure 'Gross Margin % PQ' = CALCULATE ( [Gross Margin %], DATEADD ( 'Date'[Date], -1, QUARTER ) )
+		formatString: 0.0%
+		displayFolder: Time comparison
+		lineageTag: 22a2ca07-ce8b-46c7-94d7-feebed8883b4
+
+	/// Gross margin change vs prior quarter, in percentage points.
+	measure 'Margin Change pts' = IF ( NOT ISBLANK ( [Gross Margin % PQ] ), ( [Gross Margin %] - [Gross Margin % PQ] ) * 100 )
+		formatString: +0.0 "pts";-0.0 "pts";0.0 "pts"
+		displayFolder: Time comparison
+		lineageTag: 0f0aca43-c3e5-4d82-a37c-6e97968898eb
+
+	measure 'Revenue MoM %' =
+			VAR Prior = CALCULATE ( [Revenue], DATEADD ( 'Date'[Date], -1, MONTH ) )
+			RETURN DIVIDE ( [Revenue] - Prior, Prior )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Time comparison
+		lineageTag: 68a322c7-d052-424f-b05a-b783d1ba7200
+
+	/// Average monthly revenue over the current and two prior calendar months (matches 02_monthly_growth.sql).
+	measure 'Revenue 3M Rolling Avg' =
+			VAR EndDate = MAX ( 'Date'[Date] )
+			VAR StartDate = EOMONTH ( EndDate, -3 ) + 1
+			VAR Months =
+			    CALCULATETABLE (
+			        VALUES ( 'Date'[Month Number] ),
+			        REMOVEFILTERS ( 'Date' ),
+			        DATESBETWEEN ( 'Date'[Date], StartDate, EndDate )
+			    )
+			RETURN
+			    AVERAGEX (
+			        Months,
+			        VAR m = 'Date'[Month Number]
+			        RETURN CALCULATE ( [Revenue], REMOVEFILTERS ( 'Date' ), 'Date'[Month Number] = m )
+			    )
+		formatString: \$#,0
+		displayFolder: Time comparison
+		lineageTag: 73a5b7a1-5ad5-47fe-98fe-c176bceace2a
+
+	/// Share of revenue from the top 10% of customers by revenue (matches 05_customer_pareto.sql).
+	measure 'Top 10% Customer Revenue Share' =
+			VAR Cust = FILTER ( ADDCOLUMNS ( VALUES ( Customers[customer_id] ), "@rev", [Revenue] ), [@rev] > 0 )
+			VAR N = INT ( 0.1 * COUNTROWS ( Cust ) )
+			VAR TopCust = TOPN ( N, Cust, [@rev], DESC )
+			RETURN DIVIDE ( SUMX ( TopCust, [@rev] ), SUMX ( Cust, [@rev] ) )
+		formatString: 0.0%
+		displayFolder: Customers
+		lineageTag: c8e4c626-0794-441d-8f6b-31caad5390cd
+
+	/// Share of active customers with 2+ booked orders in the selected period.
+	measure 'Repeat Customer Rate' =
+			VAR Cust = ADDCOLUMNS ( VALUES ( Customers[customer_id] ), "@orders", [Booked Orders] )
+			RETURN DIVIDE ( COUNTROWS ( FILTER ( Cust, [@orders] >= 2 ) ), COUNTROWS ( FILTER ( Cust, [@orders] >= 1 ) ) )
+		formatString: 0.0%
+		displayFolder: Customers
+		lineageTag: c8f31209-7cde-42b0-852c-9cc21dc0b2bb
+
+	/// Dynamic text that checks the Q3 summary's '8% margin drop' claim against product economics.
+	measure 'Margin Insight' =
+			VAR d = [Margin Change pts]
+			RETURN
+			    IF (
+			        ISBLANK ( d ),
+			        "Select a quarter with a prior quarter to compare margins.",
+			        IF (
+			            d >= 0,
+			            "Product gross margin is UP " & FORMAT ( d, "0.0" ) & " pts vs prior quarter. The documented 8% margin drop is not visible in product economics - it can only come from freight, which this model does not hold.",
+			            "Product gross margin is DOWN " & FORMAT ( -d, "0.0" ) & " pts vs prior quarter."
+			        )
+			    )
+		displayFolder: Narrative
+		lineageTag: 45974c4c-eea0-4696-b1a3-48544ae8c06d
+
+	column order_id
+		dataType: string
+		isKey
+		lineageTag: 68e771b1-e95b-4c92-b7ba-8bdee31d61d7
+		sourceColumn: order_id
+
+	column customer_id
+		dataType: string
+		isHidden
+		lineageTag: 0827d201-e2d0-45c6-ace3-aa4427128394
+		sourceColumn: customer_id
+
+	column order_date
+		dataType: dateTime
+		isHidden
+		formatString: yyyy-mm-dd
+		lineageTag: 778c96e5-4fd3-4670-a7de-1b1b81415e3a
+		sourceColumn: order_date
+
+	column product_id
+		dataType: string
+		isHidden
+		lineageTag: 10c27a27-1c2d-4c69-a9b1-2a33fb2de74b
+		sourceColumn: product_id
+
+	column quantity
+		dataType: int64
+		lineageTag: 10a38f50-adf2-4ca0-94ea-891c214c8511
+		summarizeBy: none
+		sourceColumn: quantity
+
+	column unit_price
+		dataType: double
+		formatString: \$#,0.00
+		lineageTag: 5c6a4a8a-df99-47bb-9157-80140a7ef772
+		summarizeBy: none
+		sourceColumn: unit_price
+
+	column discount
+		dataType: double
+		formatString: 0%
+		lineageTag: 3a6030cf-b6e7-4e4a-9647-093c68849121
+		summarizeBy: none
+		sourceColumn: discount
+
+	column region
+		dataType: string
+		lineageTag: 8393a323-ec68-41ba-9cfd-62a4ba183a6e
+		sourceColumn: region
+
+	column status
+		dataType: string
+		lineageTag: e4ed49a1-997f-4651-83f8-d14ed5fd272c
+		sourceColumn: status
+
+	/// Booked = not Cancelled/Returned and has a price. Mirrors BOOKED_FILTER in src/metrics.py.
+	column 'Is Booked' = NOT ( Orders[status] IN { "Cancelled", "Returned" } ) && NOT ISBLANK ( Orders[unit_price] )
+		dataType: boolean
+		isHidden
+		lineageTag: 05340301-3345-41da-8c0b-cf5af0fdb883
+
+	/// quantity x unit_price x (1 - discount)
+	column 'Line Revenue' = Orders[quantity] * Orders[unit_price] * ( 1 - Orders[discount] )
+		dataType: double
+		isHidden
+		formatString: \$#,0.00
+		lineageTag: 6be3fdd0-a9a2-47b1-b5e9-7e3c5110eda2
+
+	/// quantity x product cost_price (excludes freight)
+	column 'Line COGS' = Orders[quantity] * RELATED ( Products[cost_price] )
+		dataType: double
+		isHidden
+		formatString: \$#,0.00
+		lineageTag: a7d2e1fe-fc7b-4f34-b4f1-03e81c333ae7
+
+	column 'Discount Band Sort' = SWITCH ( TRUE (), Orders[discount] = 0, 1, Orders[discount] <= 0.10, 2, Orders[discount] <= 0.15, 3, 4 )
+		dataType: int64
+		isHidden
+		lineageTag: 21445423-fdf1-4094-b4aa-e0bf5bd90406
+		summarizeBy: none
+
+	/// Matches sql/analysis/04_discount_band_impact.sql
+	column 'Discount Band' = SWITCH ( TRUE (), Orders[discount] = 0, "0%", Orders[discount] <= 0.10, "1-10%", Orders[discount] <= 0.15, "11-15%", "Over 15%" )
+		dataType: string
+		lineageTag: 159fe2eb-c0bd-4a12-ab07-8aa791114a37
+		sortByColumn: 'Discount Band Sort'
+
+	partition Orders = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(DataFolder & "orders.csv"), [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Blanks = Table.ReplaceValue(Promoted, "", null, Replacer.ReplaceValue, {"unit_price", "region"}),
+				    Typed = Table.TransformColumnTypes(Blanks, {{"order_id", type text}, {"customer_id", type text}, {"order_date", type date}, {"product_id", type text}, {"quantity", Int64.Type}, {"unit_price", type number}, {"discount", type number}, {"region", type text}, {"status", type text}}, "en-US")
+				in
+				    Typed
+

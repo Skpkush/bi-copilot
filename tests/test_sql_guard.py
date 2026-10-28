@@ -73,8 +73,9 @@ class SQLGuardTests(unittest.TestCase):
     def test_execution_rejects_writes_even_if_validation_is_bypassed(self):
         # Defense in depth: the SQLite connection itself is opened read-only.
         with self.assertRaises(Exception):
-            from src.sql_guard import get_readonly_engine
             from sqlalchemy import text
+
+            from src.sql_guard import get_readonly_engine
 
             with get_readonly_engine().connect() as connection:
                 connection.execute(text("DELETE FROM orders"))

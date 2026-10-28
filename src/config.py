@@ -13,6 +13,8 @@ DOCS_DIR = PROJECT_ROOT / "docs"
 CHROMA_DIR = DATA_DIR / "chroma"
 DB_PATH = DATA_DIR / "business.db"
 EMBEDDING_MARKER = CHROMA_DIR / "embedding_backend.txt"
+QUALITY_REPORT_PATH = DATA_DIR / "quality_report.json"
+AUDIT_LOG_PATH = DATA_DIR / "audit_log.jsonl"
 
 # The sample warehouse ends on 2026-09-30, so 2026-Q3 is the latest complete
 # quarter. Keeping this fixed makes the demo reproducible.

@@ -1,0 +1,13 @@
+.git
+.venv
+venv
+.env
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+data/*.csv
+data/business.db
+data/chroma
+data/*.json
+data/*.jsonl

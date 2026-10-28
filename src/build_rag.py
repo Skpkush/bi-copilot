@@ -13,7 +13,7 @@ import hashlib
 import json
 import math
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
